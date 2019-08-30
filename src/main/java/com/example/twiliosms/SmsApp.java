@@ -5,8 +5,11 @@ import com.twilio.twiml.messaging.Body;
 import com.twilio.twiml.messaging.Message;
 import spark.Request;
 
+import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static spark.Spark.*;
 
@@ -15,7 +18,22 @@ public class SmsApp {
         get("/", (req, res) -> "Hello Web");
 
         post("/sms", (req, res) -> {
-            String textMsg = parseRequest(req).toUpperCase();
+//            System.out.println("attributes: ");
+//            req.attributes().forEach(System.out::println);
+//            System.out.println("headers: ");
+//            req.headers().forEach(System.out::println);
+//
+//            req.cookies().forEach((x,y) -> {
+//                System.out.println("cookie key: " + x);
+//                System.out.println("cookie value: " + y);
+//            });
+//            req.params().forEach((x,y) -> {
+//                System.out.println("param key: " + x);
+//                System.out.println("param value: " + y);
+//            });
+
+            Map<SmsRequestEnum, String> reqMap = parseRequest(req);
+
             /* Registration:
              *      If new phone number, register account.
              *          - Ask for Name and Partner#?
@@ -32,15 +50,31 @@ public class SmsApp {
 
             StringBuilder response = new StringBuilder();
 
+            String textMsg = reqMap.get(SmsRequestEnum.BODY).toUpperCase();
+            String to = reqMap.get(SmsRequestEnum.TO);
+            String from = reqMap.get(SmsRequestEnum.FROM);
+
             if(textMsg.contains("SBUX HELP")){
-                response.append("SBUX HELP - Display all commands.\n");
-                response.append("CLOCK IN - Clock in to your shift.\n");
-                response.append("CLOCK OUT - Clock out of your shift.\n");
-                response.append("MEAL IN - Clock in from your meal.\n");
-                response.append("MEAL OUT - Clock out from your meal.\n");
-                response.append("VIEW SCHEDULE - Schedule for current week displayed.");
+                response.append("SBUX HELP - Display all commands.\n")
+                .append("CLOCK IN - Clock in to your shift.\n")
+                .append("CLOCK OUT - Clock out of your shift.\n")
+                .append("MEAL IN - Clock in from your meal.\n")
+                .append("MEAL OUT - Clock out from your meal.\n")
+                .append("VIEW SCHEDULE - Schedule for current week displayed.");
             }
             else if (textMsg.contains("CLOCK") || textMsg.contains("MEAL")){
+                if(textMsg.contains("IN")){
+                    response.append("Thank you, ")
+                            .append(from)
+                            .append(". Your CLOCK IN has been accepted for: ")
+                            .append(LocalDateTime.now().toString());
+                }
+                else if (textMsg.contains("OUT")){
+                    response.append("Thank you, ")
+                            .append(from)
+                            .append(". Your CLOCK OUT has been accepted for: ")
+                            .append(LocalDateTime.now().toString());
+                }
 
             }
             else if (textMsg.contains("SCHEDULE")){
@@ -69,14 +103,30 @@ public class SmsApp {
         });
     }
 
-    private static String parseRequest(Request req) {
+    private static Map<SmsRequestEnum, String> parseRequest(Request req) {
+        Map<SmsRequestEnum, String> result = new HashMap<>();
+
         String[] sList = req.body().split("&");
         List<String> stringList = Arrays.asList(sList);
 
-        return stringList.stream()
-                .filter(x -> x.startsWith("Body="))
-                .map(x -> x.substring("Body=".length()).replace("+", " "))
+        result.put(SmsRequestEnum.BODY, stringList.stream()
+                .filter(x -> x.startsWith(SmsRequestEnum.BODY.getRequestValue()))
+                .map(x -> x.substring(SmsRequestEnum.BODY.getRequestValue().length()).replace("+", " "))
                 .findFirst()
-                .orElse("");
+                .orElse(""));
+
+        result.put(SmsRequestEnum.FROM, stringList.stream()
+                .filter(x -> x.startsWith(SmsRequestEnum.FROM.getRequestValue()))
+                .map(x -> x.substring(SmsRequestEnum.FROM.getRequestValue().length()).replace("%2B", ""))
+                .findFirst()
+                .orElse(""));
+
+        result.put(SmsRequestEnum.TO, stringList.stream()
+                .filter(x -> x.startsWith(SmsRequestEnum.TO.getRequestValue()))
+                .map(x -> x.substring(SmsRequestEnum.TO.getRequestValue().length()).replace("%2B", ""))
+                .findFirst()
+                .orElse(""));
+
+        return result;
     }
 }
