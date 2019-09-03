@@ -4,6 +4,7 @@ import com.example.twiliosms.domain.Employee;
 import com.twilio.twiml.MessagingResponse;
 import com.twilio.twiml.messaging.Body;
 import com.twilio.twiml.messaging.Message;
+import org.springframework.stereotype.Component;
 import spark.Request;
 
 import javax.annotation.PostConstruct;
@@ -15,12 +16,15 @@ import java.util.Map;
 
 import static spark.Spark.*;
 
+@Component
 public class SmsApp {
 
-    private static Map<String, Employee> phoneNumberMap = new HashMap<>();
-    private static boolean isPartner = false;
-    private static final String TEST_NUMBER = "phoneNumber";
-    public static void populateMap(){
+    private Map<String, Employee> phoneNumberMap = new HashMap<>();
+    private boolean isPartner = false;
+    private static final String TEST_NUMBER = "<<PHONE NUMBER>>";
+
+    @PostConstruct
+    private void populateMap(){
         Employee e = new Employee();
         e.setFirstName("Eric");
         e.setLastName("Test");
@@ -29,8 +33,8 @@ public class SmsApp {
         phoneNumberMap.put(TEST_NUMBER, e);
     }
 
-    public static void main(String[] args) {
-        populateMap();
+    public void sms() {
+//        populateMap();
         get("/", (req, res) -> "Hello Web");
 
         post("/sms", (req, res) -> {
@@ -146,7 +150,7 @@ public class SmsApp {
         });
     }
 
-    private static void generateClockMenu(Employee partner, StringBuilder response, ActionTypeEnum actionType) {
+    private void generateClockMenu(Employee partner, StringBuilder response, ActionTypeEnum actionType) {
         response.append("Thank you, ")
                 .append(partner.getFullName())
                 .append(". Your ")
@@ -155,7 +159,7 @@ public class SmsApp {
                 .append(LocalDateTime.now().toString());
     }
 
-    private static void generateHelpMenu(StringBuilder response) {
+    private void generateHelpMenu(StringBuilder response) {
         response.append("SBUX HELP - Display all commands.\n")
                 .append("CLOCK IN - Clock in to your shift.\n")
                 .append("CLOCK OUT - Clock out of your shift.\n")
@@ -164,12 +168,12 @@ public class SmsApp {
                 .append("VIEW SCHEDULE - Schedule for current week displayed.");
     }
 
-    private static Employee getValidPartner(String phoneNbr) {
+    private Employee getValidPartner(String phoneNbr) {
         System.out.println("Incoming Phone Number: " + phoneNbr);
         return phoneNumberMap.get(phoneNbr);
     }
 
-    private static Map<SmsRequestEnum, String> parseRequest(Request req) {
+    private Map<SmsRequestEnum, String> parseRequest(Request req) {
         Map<SmsRequestEnum, String> result = new HashMap<>();
 
         String[] sList = req.body().split("&");
