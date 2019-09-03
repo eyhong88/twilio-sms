@@ -19,5 +19,5 @@ dependencies {
 	implementation group: "com.twilio.sdk", name: "twilio", version: "7.41.2"
     implementation group: "com.sparkjava", name: "spark-core", version: "2.7.1"
     implementation group: "org.slf4j", name: "slf4j-simple", version: "1.7.21"
-
+	compileOnly 'org.projectlombok:lombok:1.18.8'
 }

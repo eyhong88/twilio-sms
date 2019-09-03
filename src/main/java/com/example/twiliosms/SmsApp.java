@@ -1,10 +1,12 @@
 package com.example.twiliosms;
 
+import com.example.twiliosms.domain.Employee;
 import com.twilio.twiml.MessagingResponse;
 import com.twilio.twiml.messaging.Body;
 import com.twilio.twiml.messaging.Message;
 import spark.Request;
 
+import javax.annotation.PostConstruct;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -14,7 +16,21 @@ import java.util.Map;
 import static spark.Spark.*;
 
 public class SmsApp {
+
+    private static Map<String, Employee> phoneNumberMap = new HashMap<>();
+    private static boolean isPartner = false;
+    private static final String TEST_NUMBER = "phoneNumber";
+    public static void populateMap(){
+        Employee e = new Employee();
+        e.setFirstName("Eric");
+        e.setLastName("Test");
+        e.setPhoneNumber(TEST_NUMBER);
+        e.setPartnerNumber("US12345");
+        phoneNumberMap.put(TEST_NUMBER, e);
+    }
+
     public static void main(String[] args) {
+        populateMap();
         get("/", (req, res) -> "Hello Web");
 
         post("/sms", (req, res) -> {
@@ -54,34 +70,61 @@ public class SmsApp {
             String to = reqMap.get(SmsRequestEnum.TO);
             String from = reqMap.get(SmsRequestEnum.FROM);
 
-            if(textMsg.contains("SBUX HELP")){
-                response.append("SBUX HELP - Display all commands.\n")
-                .append("CLOCK IN - Clock in to your shift.\n")
-                .append("CLOCK OUT - Clock out of your shift.\n")
-                .append("MEAL IN - Clock in from your meal.\n")
-                .append("MEAL OUT - Clock out from your meal.\n")
-                .append("VIEW SCHEDULE - Schedule for current week displayed.");
+            Employee partner = getValidPartner(from);
+            if(null != partner){
+                isPartner = true;
             }
-            else if (textMsg.contains("CLOCK") || textMsg.contains("MEAL")){
-                if(textMsg.contains("IN")){
-                    response.append("Thank you, ")
-                            .append(from)
-                            .append(". Your CLOCK IN has been accepted for: ")
-                            .append(LocalDateTime.now().toString());
-                }
-                else if (textMsg.contains("OUT")){
-                    response.append("Thank you, ")
-                            .append(from)
-                            .append(". Your CLOCK OUT has been accepted for: ")
-                            .append(LocalDateTime.now().toString());
-                }
 
-            }
-            else if (textMsg.contains("SCHEDULE")){
+            if(isPartner){
+                System.out.println("Partner: " + partner.getFirstName());
 
+                if(textMsg.contains("SBUX HELP")){
+                    generateHelpMenu(response);
+                }
+                else if (textMsg.contains("CLOCK")){
+                    if(textMsg.contains("IN")){
+                        generateClockMenu(partner, response, ActionTypeEnum.CLOCK_IN);
+                    }
+                    else if (textMsg.contains("OUT")){
+                        generateClockMenu(partner, response, ActionTypeEnum.CLOCK_OUT);
+                    }
+                    else {
+                        //PLEASE CLARIFY YOUR ACTION
+                        response.append("Please clarify your intent.  Help menu displayed for your convenience.\n");
+                        generateHelpMenu(response);
+                    }
+                }
+                else if (textMsg.contains("MEAL")){
+                    if(textMsg.contains("IN")){
+                        generateClockMenu(partner, response, ActionTypeEnum.MEAL_IN);
+                    }
+                    else if (textMsg.contains("OUT")){
+                        generateClockMenu(partner, response, ActionTypeEnum.MEAL_OUT);
+                    }
+                    else {
+                        // PLEASE CLARIFY YOUR ACTION
+                        response.append("Please clarify your intent.  Help menu displayed for your convenience.\n");
+                        generateHelpMenu(response);
+                    }
+
+                }
+//                else if (textMsg.contains("SCHEDULE")){
+//
+//                }
+                else {
+                    // PLEASE CLARIFY YOUR ACTION
+                    response.append("Please clarify your intent.  Help menu displayed for your convenience.\n");
+                    generateHelpMenu(response);
+
+                }
             }
             else {
-
+                // BEFORE YOU CAN SEND REQUESTS, PLEASE REGISTER
+                // register by COPY AND PASTE:
+                // FIRST NAME: <firstName>
+                // LAST NAME: <lastName>
+                // PARTNER NUMBER: <partnerNbr>
+                response.append("PLEASE REGISTER");
             }
 
             res.type("application/xml");
@@ -101,6 +144,29 @@ public class SmsApp {
 
             return twiml.toXml();
         });
+    }
+
+    private static void generateClockMenu(Employee partner, StringBuilder response, ActionTypeEnum actionType) {
+        response.append("Thank you, ")
+                .append(partner.getFullName())
+                .append(". Your ")
+                .append(actionType.getActionType())
+                .append(" has been accepted for: ")
+                .append(LocalDateTime.now().toString());
+    }
+
+    private static void generateHelpMenu(StringBuilder response) {
+        response.append("SBUX HELP - Display all commands.\n")
+                .append("CLOCK IN - Clock in to your shift.\n")
+                .append("CLOCK OUT - Clock out of your shift.\n")
+                .append("MEAL IN - Clock in from your meal.\n")
+                .append("MEAL OUT - Clock out from your meal.\n")
+                .append("VIEW SCHEDULE - Schedule for current week displayed.");
+    }
+
+    private static Employee getValidPartner(String phoneNbr) {
+        System.out.println("Incoming Phone Number: " + phoneNbr);
+        return phoneNumberMap.get(phoneNbr);
     }
 
     private static Map<SmsRequestEnum, String> parseRequest(Request req) {
