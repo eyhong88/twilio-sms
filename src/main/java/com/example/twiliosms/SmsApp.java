@@ -4,11 +4,15 @@ import com.example.twiliosms.domain.Employee;
 import com.twilio.twiml.MessagingResponse;
 import com.twilio.twiml.messaging.Body;
 import com.twilio.twiml.messaging.Message;
+import org.joda.time.format.DateTimeFormat;
 import org.springframework.stereotype.Component;
 import spark.Request;
 
 import javax.annotation.PostConstruct;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -85,6 +89,9 @@ public class SmsApp {
                 if(textMsg.contains("SBUX HELP")){
                     generateHelpMenu(response);
                 }
+                else if (textMsg.contains("SCHEDULE")){
+                    generateScheduleMenu(partner, response);
+                }
                 else if (textMsg.contains("CLOCK")){
                     if(textMsg.contains("IN")){
                         generateClockMenu(partner, response, ActionTypeEnum.CLOCK_IN);
@@ -110,7 +117,6 @@ public class SmsApp {
                         response.append("Please clarify your intent.  Help menu displayed for your convenience.\n");
                         generateHelpMenu(response);
                     }
-
                 }
 //                else if (textMsg.contains("SCHEDULE")){
 //
@@ -150,6 +156,36 @@ public class SmsApp {
         });
     }
 
+    /**
+     *
+     * @param partner
+     * @param response
+     */
+    private void generateScheduleMenu(Employee partner, StringBuilder response){
+        DateTimeFormatter format = DateTimeFormatter.ofPattern("MM/dd");
+        DateTimeFormatter format2 = DateTimeFormatter.ofPattern("EEE, MM/dd");
+        String current = LocalDate.now().format(format);
+        String endOfWeek = LocalDate.now().with(DayOfWeek.SATURDAY).format(format);
+        response.append(partner.getFirstName())
+                .append(", your schedule for ")
+                .append(current)
+                .append(" - ")
+                .append(endOfWeek)
+                .append(":\n")
+                .append(LocalDate.now().format(format2))
+                .append(": ")
+                .append("9:00 AM - 12:00 PM\n")
+                .append(LocalDate.now().with(DayOfWeek.SATURDAY).format(format2))
+                .append(": ")
+                .append("9:00 AM - 1:00 PM");
+    }
+
+    /**
+     *
+     * @param partner
+     * @param response
+     * @param actionType
+     */
     private void generateClockMenu(Employee partner, StringBuilder response, ActionTypeEnum actionType) {
         response.append("Thank you, ")
                 .append(partner.getFullName())
@@ -159,7 +195,14 @@ public class SmsApp {
                 .append(LocalDateTime.now().toString());
     }
 
+    /**
+     *
+     * @param response
+     */
     private void generateHelpMenu(StringBuilder response) {
+        // What other commands should we do?
+        // VIEW SHIFT?
+        // Push message to phone when schedule changes.
         response.append("SBUX HELP - Display all commands.\n")
                 .append("CLOCK IN - Clock in to your shift.\n")
                 .append("CLOCK OUT - Clock out of your shift.\n")
@@ -168,11 +211,21 @@ public class SmsApp {
                 .append("VIEW SCHEDULE - Schedule for current week displayed.");
     }
 
+    /**
+     *
+     * @param phoneNbr
+     * @return
+     */
     private Employee getValidPartner(String phoneNbr) {
         System.out.println("Incoming Phone Number: " + phoneNbr);
         return phoneNumberMap.get(phoneNbr);
     }
 
+    /**
+     *
+     * @param req
+     * @return
+     */
     private Map<SmsRequestEnum, String> parseRequest(Request req) {
         Map<SmsRequestEnum, String> result = new HashMap<>();
 
